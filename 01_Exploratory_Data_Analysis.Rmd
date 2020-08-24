@@ -1,0 +1,24 @@
+---
+title: "Exploratory Data Analysis"
+author: "Trevor Barnes"
+date: "8/24/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***Exploratory data analysis***, or ***EDA***, is a comparatively new area of statistics. Classical statistics focused almost exclusively on *inference*, a sometimes complex set of procedures for drawing conclusions about large populations based on small samples. With the ready availability of computing power and expressive data analysis software, exploratory data analysis has evolved well beyond its original scope. Key drivers of this discipline have been the rapid development of new technology, access to more and bigger data, and the greater use of quantitative analysis in a variety of disciplines.
+
+## Elements of Structured Data
+
+Data comes from many sources: sensor measurements, events, text, images, and videos. The *Internet of Things (IoT)* is spewing out streams of information. Much of this data is *unstructured*: images are a collection of pixels with each pixel containing RGB (red, green, blue) color information. Texts are sequences of words and nonword characters, often organized by sections, subsections, and so on. *Clickstreams* are sequences of actions by a user interacting with an app or web page. In fact, a major challenge of data science is to harness this torrent of raw data into actionable information. 
+
+| Term | Definition|Synonym|
+|-------|-------|------|
+| Continuous | Data that can take on any value in an interval. | interval, float, numeric|
+| Discrete | Data that can take only integer values, such as counts. | integer, count | 
+| Categorical | Data that can take on only a specific set of values representing a set of possible categories. | enums, enumerated, factors, nominal, polychotomous|
+| Binary | A special case of categorical data with just two categories of values (0/1, true/false). | dichotomous, logical, indicator, boolean |
+| Ordinal | Categorical data that has an explicit ordering. | ordered factor |
