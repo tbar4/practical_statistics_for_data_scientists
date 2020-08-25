@@ -7,13 +7,17 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(matrixStats)
+
+## Set the path for data loads
+DATA_PATH <- file.path("~", "RStudio/practical_statistics_for_data_scientists/data")
 ```
 
 ***Exploratory data analysis***, or ***EDA***, is a comparatively new area of statistics. Classical statistics focused almost exclusively on *inference*, a sometimes complex set of procedures for drawing conclusions about large populations based on small samples. With the ready availability of computing power and expressive data analysis software, exploratory data analysis has evolved well beyond its original scope. Key drivers of this discipline have been the rapid development of new technology, access to more and bigger data, and the greater use of quantitative analysis in a variety of disciplines.
 
 ___
 
-## Elements of Structured Data
+# Elements of Structured Data
 
 Data comes from many sources: sensor measurements, events, text, images, and videos. The *Internet of Things (IoT)* is spewing out streams of information. Much of this data is *unstructured*: images are a collection of pixels with each pixel containing RGB (red, green, blue) color information. Texts are sequences of words and nonword characters, often organized by sections, subsections, and so on. *Clickstreams* are sequences of actions by a user interacting with an app or web page. In fact, a major challenge of data science is to harness this torrent of raw data into actionable information. 
 
@@ -37,9 +41,293 @@ Knowing that data is categorical can act as a signal telling software how statis
 |Data typing in software acts as a signal to the software on how to process the data.|
 
 ___
-## Rectangular Data
+# Rectangular Data
 
 The typical frame of reference for an analysis in data science is a ***rectangular data*** object, like a spreadsheet or database table.
 
 | Term | Definition | Synonym |
 |-----|-----|-----|
+| **DataFrame** | Rectangular data (like a spreadsheet) is the basic data structure for statistical and machine learning models. | |
+| **Feature** | A column in the table is commonly referred to as a feature.| attribute, input, predictor, variable | 
+| **Outcome** | Many data science projects involve predicting an outcome—often a yes/no outcome. The features are sometimes used to predict the outcome in an experiment or study. | dependent variable, response, target, output |
+| **Records** | A row in the table is commonly referred to as a record. | case, example, instance, observation, pattern, sample |
+
+Rectangular data is essentially a two-dimensional matrix with rows indicating records (cases) and columns indicating features (variables). The data doesn’t always start in this form: unstructured data (e.g., text) must be processed and manipulated so that it can be represented as a set of features in the rectangular data. Data in relational databases must be extracted and put into a single table for most data analysis and modeling tasks.
+Table: **Key Terms for Rectangular Data**
+
+## Data Frames and Indexes
+
+Traditional database tables have one or more columns designated as an index. This can vastly improve the efficiency of certain SQL queries. In Python, with the pandas library, the basic rectangular data structure is a DataFrame object. By default, an automatic integer index is created for a DataFrame based on the order of the rows. In pandas, it is also possible to set multilevel/hierarchical indexes to improve the efficiency of certain operations.
+
+In R, the basic rectangular data structure is a data.frame object. A data.frame also has an implicit integer index based on the row order. While a custom key can be created through the row.names attribute, the native R data.frame does not support user-specified or multilevel indexes. To overcome this deficiency, two new packages are gaining widespread use: data.table and dplyr. Both support multilevel indexes and offer significant speedups in working with a data.frame.
+
+<pre>
+<center>TERMINOLOGY DIFFERENCES</center>
+Terminology for rectangular data can be confusing. Statisticians and data scientists use different terms for the 
+same thing. For a statistician, predictor variables are used in a model to predict a response or dependent 
+variable. For a data scientist, features are used to predict a target. One synonym is particularly confusing: 
+computer scientists will use the term sample for a single row; a sample to a statistician means a collection of 
+rows.
+</pre>
+
+## Nonrectangular Data Structures
+
+***Time series*** data records successive measurements of the same variable. It is the raw material for statistical forecasting methods, and it is also a key component of the data produced by devices—the *Internet of Things*.
+
+***Spatial*** data structures, which are used in mapping and location analytics, are more complex and varied than rectangular data structures. In the ***object*** representation, the focus of the data is an object (e.g., a house) and its spatial coordinates. The ***field*** view, by contrast, focuses on small units of space and the value of a relevant metric (pixel brightness, for example).
+
+***Graph*** (or ***Network***) data structures are used to represent physical, social, and abstract relationships. For example, a graph of a social network, such as Facebook or LinkedIn, may represent connections between people on the network. Distribution hubs connected by roads are an example of a physical network. Graph structures are useful for certain types of problems, such as network optimization and recommender systems.
+
+| Key Ideas |
+|-----|
+| The basic data structure in data science is a rectangular matrix in which rows are records and columns are variables (features). |
+| Terminology can be confusing; there are a variety of synonyms arising from the different disciplines that contribute to data science (statistics, computer science, and information technology). |
+
+## Estimates of Location
+
+Variables with measured or count data might have thousands of distinct values. A basic step in exploring your data is getting a “typical value” for each feature (variable): an estimate of where most of the data is located (i.e., its central tendency).
+
+| Term | Definition | Synonym |
+| ----- | ----- | -----|
+| **Mean** | The sum of all values divided by the number of values. | average |
+| **Weighted Mean** | The sum of all values times a weight divided by the sum of the weights. | weighted average |
+| **Median** | The value such that one-half of the data lies above and below. | 50th percentile |
+| **Weighted Mean** | The value such that one-half of the sum of the weights lies above and below the sorted data. ||
+| **Trimmed Mean** | The average of all values after dropping a fixed number of extreme values. | truncated mean |
+| **Robust** | Not sensitive to extreme values. | resistant |
+| **Outlier** | A data value that is very different from most of the data. | extreme value |
+Table: **Key Terms for Estimates of Location**
+
+## Mean
+
+The most basic estimate of location is the mean, or ***average value***. The mean is the sum of all the values divided by the number of values. Consider the following set of numbers: {3 5 1 2}. The mean is (3 + 5 + 1 + 2) / 4 = 11 / 4 = 2.75. You will encounter the symbol $Mean = \bar{x} = {\Sigma^n_ix_i\over{n}}$
+
+> N (or n) refers to the total number of records or observations. In statistics it is capitalized if it is referring to a population, and lowercase if it refers to a sample from a population. In data science, that distinction is not vital so you may see it both ways.
+
+A variation of the mean is a ***trimmed mean***, which you calculate by dropping a fixed number of sorted values at each end and then taking an average of the remaining values. Representing the sorted values by $x_{(1)}, x{(2)}, ..., x{(n)}$ where $x_{(1)}$ is the smallest value and $x_{(n)}$ the largest, the formula to compute the trimmed mean $P$ smallest and largest values omitted is:
+
+$Trimmed Mean = \bar{x} = \frac{\Sigma^{n-p}_{i=p+1}x_{(i)}}{n-2p}$
+
+A trimmed mean eliminates the influence of extreme values.
+
+Another type of mean is a ***weighted mean***, which you calculate by multiplying each data value $x^i$ by a weight $w^i$ and dividing their sum by the sum of the weights. The formula for a weighted mean is:
+
+$WeightedMean = \bar{x}_w = \frac{\Sigma^n_{i=1}w_ix_i}{\Sigma^n_iw_i}$
+
+There are two main motivations for using a weighted mean:
+
+1) Some values are intrinsically more variable than others, and highly variable observations are given a lower weight. For example, if we are taking the average from multiple sensors and one of the sensors is less accurate, then we might downweight the data from that sensor.
+2) The data collected does not equally represent the different groups that we are interested in measuring. For example, because of the way an online experiment was conducted, we may not have a set of data that accurately reflects all groups in the user base. To correct that, we can give a higher weight to the values from the groups that were underrepresented.
+
+## Median and Robust Estimates
+
+The ***median*** is the middle number on a sorted list of the data. If there is an even number of data values, the middle value is one that is not actually in the data set, but rather the average of the two values that divide the sorted data into upper and lower halves. Compared to the mean, which uses all observations, the median depends only on the values in the center of the sorted data. While this might seem to be a disadvantage, since the mean is much more sensitive to the data, there are many instances in which the median is a better metric for location.
+
+For the same reasons that one uses a weighted mean, it is also possible to compute a weighted median. As with the median, we first sort the data, although each data value has an associated weight.Instead of the middle number, the weighted median is a value such that the sum of the weights is equal for the lower and upper halves of the sorted list. Like the median, the weighted median is robust to outliers.
+
+### Outliers
+
+The median is referred to as a ***robust*** estimate of location since it is not influenced by ***outliers*** (extreme cases) that could skew the results. An outlier is any value that is very distant from the other values in a data set. The exact definition of an outlier is somewhat subjective. The median is not the only robust estimate of location. In fact, a trimmed mean is widely used to avoid the influence of outliers. 
+
+Compute the mean, trimmed mean, and median for the population using R:
+
+```{r}
+## Import the state data
+state <- read.csv(file.path(DATA_PATH, "state.csv"))
+
+## Get the mean for the state data
+mean(state[["Population"]])
+
+## Trim 10% from the data on each end
+mean(state[["Population"]], trim=0.1)
+
+## Get the median from the data
+median(state[["Population"]])
+```
+
+The mean is bigger than the trimmed mean, which is bigger than the median.
+This is because the trimmed mean excludes the largest and smallest five states (trim=0.1 drops 10% from each end). If we want to compute the average murder rate for the country, we need to use a weighted mean or median to account for different populations in the states. Since base `R` doesn’t have a function for weighted median, we need to install a package such as `matrixStats`:
+
+```{r}
+## Get the weighted Mean
+weighted.mean(state[["Murder.Rate"]], w=state[["Population"]])
+
+## use the `matrixStats` package to get the weighted median
+weightedMedian(state[["Murder.Rate"]], w=state[["Population"]])
+```
+
+In this case, the weighted mean and median are about the same.
+
+| Key Ideas |
+|-----|
+| The basic metric for location is the mean, but it can be sensitive to extreme values (outlier). |
+| Other metrics (median, trimmed mean) are more robust. |
+
+# Estimates of Variability
+
+Location is just one dimension in summarizing a feature. A second dimension, ***variability***, also referred to as ***dispersion***, measures whether the data values are tightly clustered or spread out. At the heart of statistics lies variability: measuring it, reducing it, distinguishing random from real variability, identifying the various sources of real variability, and making decisions in the presence of it.
+
+| Term | Definition | Synonym |
+|-----|-----|-----|
+| **Deviations** | The difference between the observed values and the estimate of location. | errors, residuals |
+| **Variance** | The sum of squared deviations from the mean divided by $n – 1$ where $n$ is the number of data values. | mean-squared-error (MSE) |
+| **Standard Deviation** | The square root of the variance. | l2-norm, Euclidean Norm |
+| **Mean Absolute Deviation** | The mean of the absolute value of the deviations from the mean. | l1-norm, Manhattan Norm |
+| **Median Absolute Deviation from the Median** | The median of the absolute value of the deviations from the median.||
+| **Range** | The difference between the largest and the smallest value in a data set. ||
+| **Order Statistics** | Metrics based on the data values sorted from smallest to biggest. | ranks |
+| **Percentile** | The value such that $P$ percent of the values take on this value or less and ($100–P$) percent take on this value or more.| quantile |
+| **Interquartile Range** | The difference between the 75th percentile and the 25th percentile. | IQR |
+
+## Standard Deviation and Related Estimates
+
+The most widely used estimates of variation are based on the differences, or deviations, between the estimate of location and the observed data. For a set of data {1, 4, 4}, the mean is 3 and the median is 4. The deviations from the mean are the differences: 1 – 3 = –2, 4 – 3 = 1 , 4 – 3 = 1. These deviations tell us how dispersed the data is around the central value.
+
+One way to measure variability is to estimate a typical value for these deviations. Averaging the deviations themselves would not tell us much—the negative deviations offset the positive ones. In fact, the sum of the deviations from the mean is precisely zero. Instead, a simple approach is to take the average of the absolute values of the deviations from the mean. In the preceding example, the absolute value of the deviations is {2 1 1} and their average is (2 + 1 + 1) / 3 = 1.33. This is known as the ***mean absolute deviation*** and is computed with the formula:
+
+$MeanAbsoluteDeviation = \frac{\Sigma^n_{i=1}|x_i - \bar{x}|}{n}$
+
+where $\bar{x}$ is the sample mean.
+
+The best-known estimates for variability are the ***variance*** and the ***standard deviation***, which are based on squared deviations. The variance is an average of the squared deviations, and the standard deviation is the square root of the variance.
+
+$ Variance = s^2 = \frac{\Sigma(x - \bar{x})^2}{n-1}$
+$ Standard Deviation = s = \sqrt{Variance}$
+
+The standard deviation is much easier to interpret than the variance since it is on the same scale as the original data. Still, with its more complicated and less intuitive formula, it might seem peculiar that the standard deviation is preferred in statistics over the mean absolute deviation. It owes its preeminence to statistical theory: mathematically, working with squared values is much more convenient than absolute values, especially for statistical models.
+
+<center> **Degrees of Freedom, and $N$ or $N-1$?**</center>
+> In statistics books, there is always some discussion of why we have $n – 1$ in the denominator in the variance formula, instead of $n$, leading into the concept of ***degrees of freedom***. This distinction is not important since n is generally large enough that it won’t make much difference whether you divide by $n$ or $n – 1$. It is based on the premise that you want to make estimates about a population, based on a sample.
+
+> If you use the intuitive denominator of $n$ in the variance formula, you will underestimate the true value of the variance and the standard deviation in the population. This is referred to as a **biased** estimate. However, if you divide by $n – 1$ instead of $n$, the standard deviation becomes an ***unbiased*** estimate.
+
+> To fully explain why using $n$ leads to a biased estimate involves the notion of degrees of freedom, which takes into account the number of constraints in computing an estimate. In this case, there are $n – 1$ degrees of freedom since there is one constraint: the standard deviation depends on calculating the sample mean. For many problems, data scientists do not need to worry about degrees of freedom, but there are cases where the concept is important, like choosing $K$.
+
+Neither the variance, the standard deviation, nor the mean absolute deviation is robust to outliers and extreme values. The variance and standard deviation are especially sensitive to outliers since they are based on the squared deviations.
+
+A robust estimate of variability is the ***median absolute deviation from the median*** or ***MAD***:
+
+$ MedianAbsoluteDeviation = Median(| x_1 - m |, | x_2 - m |,  ..., | x_N - m |)$
+
+where $m$ is the median. Like the median, the MAD is not influenced by extreme values. It is also possible to compute a trimmed standard deviation analogous to the trimmed mean.
+
+## Estimates Based on Percentiles
+
+A different approach to estimating dispersion is based on looking at the spread of the sorted data. Statistics based on sorted (ranked) data are referred to as ***order statistics***. The most basic measure is the ***range***: the difference between the largest and smallest number. The minimum and maximum values themselves are useful to know, and helpful in identifying outliers, but the range is extremely sensitive to outliers and not very useful as a general measure of dispersion in the data.
+
+To avoid the sensitivity to outliers, we can look at the range of the data after dropping values from each end. Formally, these types of estimates are based on differences between ***percentiles***. In a data set, the $P$th percentile is a value such that at least $P$ percent of the values take on this value or less and at least ($100 – P$) percent of the values take on this value or more. For example, to find the 80th percentile, sort the data. Then, starting with the smallest value, proceed 80 percent of the way to the largest value. Note that the median is the same thing as the 50th percentile. The percentile is essentially the same as a ***quantile***, with quantiles indexed by fractions (so the .8 quantile is the same as the 80th percentile).
+
+A common measurement of variability is the difference between the 25th percentile and the 75th percentile, called the ***interquartile range*** (or ***IQR***). Here is a simple example: $3,1,5,3,6,7,2,9$. We sort these to get $1,2,3,3,5,6,7,9$. The 25th percentile is at $2.5$, and the 75th percentile is at $6.5$, so the interquartile range is $6.5 – 2.5 = 4$.
+
+Using R’s built-in functions for the standard deviation, interquartile range (IQR), and the median absolution deviation from the median (MAD), we can compute estimates of variability for the state population data:
+
+```{r}
+## Get the Standard Deviation for the Population in the State dataset
+sd(state[["Population"]])
+
+## Get the Interquartile Range
+IQR(state[["Population"]])
+
+## Get the Median Absolute Deviation from the Median
+mad(state[["Population"]])
+```
+
+The standard deviation is almost twice as large as the MAD (in R, by default, the scale of the MAD is adjusted to be on the same scale as the mean). This is not surprising since the standard deviation is sensitive to outliers.
+
+|Key Ideas|
+|-----|
+|The variance and standard deviation are the most widespread and routinely reported statistics of variability.|
+|Both are sensitive to outliers.|
+|More robust metrics include mean and median absolute deviations from the mean and percentiles (quantiles).|
+
+# Exploring the Data Distribution
+
+Each of the estimates we’ve covered sums up the data in a single number to describe the location or variability of the data. It is also useful to explore how the
+data is distributed overall.
+
+|Term|Definition|Synonym|
+|-----|-----|-----|
+|**Boxplot**|A plot introduced by Tukey as a quick way to visualize the distribution of data.|Box and whiskers plot|
+|**Frequency Table**| A tally of the count of numeric data values that fall into a set of intervals (bins).||
+|**Histogram**|A plot of the frequency table with the bins on the x-axis and the count (or proportion) on the y-axis.||
+|**Density Plot** | A smoothed version of the histogram, often based on a ***kernal density estimate***.||
+
+## Percentiles and Boxplots
+
+Percentiles are also valuable to summarize the entire distribution. It is common to report the quartiles (25th, 50th, and 75th percentiles) and the deciles (the 10th, 20th, ..., 90th percentiles). Percentiles are especially valuable to summarize the tails (the outer range) of the distribution.
+
+In R, this would be produced by the `quantile` function:
+
+```{r}
+## Get the quantile ranges for murder rate
+quantile(state[["Murder.Rate"]], p = c(.05, .25, .5, .75, .95))
+```
+
+The median is 4 murders per 100,000 people, although there is quite a bit of variability: the 5th percentile is only 1.6 and the 95th percentile is 6.51.
+
+Boxplots, introduced by Tukey, are based on percentiles and give a quick way to visualize the distribution of data. A boxplot of the population by state produced by R:
+
+```{r}
+boxplot(state[["Population"]]/1000000, ylab="Population (millions)")
+```
+
+The top and bottom of the box are the 75th and 25th percentiles, respectively. The median is shown by the horizontal line in the box. The dashed lines, referred to as *whiskers*, extend from the top and bottom to indicate the range for the bulk of the data. There are many variations of a boxplot; see, for example, the documentation for the R function `boxplot`. By default, the R function extends the whiskers to the furthest point beyond the box, except that it will not go beyond 1.5 times the IQR (other software may use a different rule). Any data outside of the whiskers is plotted as single points.
+
+## Frequency Table and Histograms
+
+A frequency table of a variable divides up the variable range into equally spaced segments, and tells us how many values fall in each segment. 
+
+```{r}
+## Create Breaks for the histogram, into 11 sections
+breaks <- seq(from = min(state[["Population"]]), 
+              to = max(state[["Population"]]),
+              length = 11)
+
+## Create the frequency cuts based on the breaks
+pop_freq <- cut(state[["Population"]], 
+                breaks = breaks,
+                right = TRUE,
+                include.lowest = TRUE)
+
+## Create the table
+table(pop_freq)
+```
+
+
+A histogram is a way to visualize a frequency table, with bins on the x-axis and data count on the y-axis. To create a histogram corresponding in R, use the hist function with the breaks argument:
+
+```{r}
+## Creating a histogram
+hist(state[["Population"]],
+     breaks = breaks)
+```
+
+
+In general, histograms are plotted such that:
+
+* Empty bins are included in the graph.
+* Bins are equal width.
+* Number of bins (or, equivalently, bin size) is up to the user.
+* Bars are contiguous—no empty space shows between bars, unless there is an empty bin.
+
+## Density Estimates
+
+Related to the histogram is a density plot, which shows the distribution of data values as a continuous line. A density plot can be thought of as a smoothed histogram, although it is typically computed directly from the data through a ***kernal density estimate***. In R, you can compute a density estimate using the density function:
+
+```{r}
+## Create a hist and a density plot
+hist(state[["Murder.Rate"]], freq = FALSE)
+lines(density(state[["Murder.Rate"]]), 
+              ## Line Weight
+              lwd = 3, 
+              ## Line Color
+              col = "blue")
+```
+A key distinction from the histogram plotted is the scale of the y- axis: a density plot corresponds to plotting the histogram as a proportion rather than counts (you specify this in R using the argument freq=FALSE).
+
+|Key Ideas|
+|-----|
+|A frequency histogram plots frequency counts on the y-axis and variable values on the x-axis; it gives a sense of the distribution of the data at a glance.|
+|A frequency table is a tabular version of the frequency counts found in a histogram.|
+|A boxplot—with the top and bottom of the box at the 75th and 25th percentiles, respectively—also gives a quick sense of the distribution of the data; it is often used in side-by-side displays to compare distributions.|
+|A density plot is a smoothed version of a histogram; it requires a function to estimate a plot based on the data (multiple estimates are possible, of course).|
