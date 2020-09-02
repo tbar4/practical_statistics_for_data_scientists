@@ -1,0 +1,435 @@
+---
+title: "Regression and Prediction"
+author: "Trevor Barnes"
+date: "9/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(matrixStats)
+library(corrplot)
+library(ggplot2)
+library(descr)
+library(boot)
+library(MASS)
+library(dplyr)
+## Set the path for data loads
+DATA_PATH <- file.path("~", "RStudio/practical_statistics_for_data_scientists/data")
+## Import the state data
+state <- read.csv(file.path(DATA_PATH, "state.csv"))
+## Import the state dfw
+dfw <- read.csv(file.path(DATA_PATH, "dfw_airline.csv"))
+## Import the state sp500
+sp500_px <- read.csv(file.path(DATA_PATH, "sp500_data.csv"))
+## Import the state sp500 symbols
+sp500_sym <- read.csv(file.path(DATA_PATH, "sp500_sectors.csv"))
+## Import the King County Tax Data
+kc_tax <- read.csv(file.path(DATA_PATH, "kc_tax.csv"))
+## Import the Loan Data
+lc_loans <- read.csv(file.path(DATA_PATH, "lc_loans.csv"))
+## Import the Loan Data
+airline_stats <- read.csv(file.path(DATA_PATH, "airline_stats.csv"))
+## Import the Loan Data
+loans_income <- read.csv(file.path(DATA_PATH, "loans_income.csv"))
+## Import the session times
+session_times <- read.csv(file.path(DATA_PATH, "web_page_data.csv"))
+## Import the session times
+four_sessions <- read.csv(file.path(DATA_PATH, "four_sessions.csv"))
+## Import the session times
+clicks <- read.csv(file.path(DATA_PATH, "click_rates.csv"))
+## Import the PEFR
+lung <- read.csv(file.path(DATA_PATH, "LungDisease.csv"))
+## Import the house
+house <- read.csv(file.path(DATA_PATH, "house_sales.csv"), sep = "")
+```
+
+Perhaps the most common goal in statistics is to answer the question: Is the variable $X$ (or more likely, $X_1, ..., X_p$) associated with a variable $Y$, and, if so,
+what is the relationship and can we use it to predict $Y$?
+
+Nowhere is the nexus between statistics and data science stronger than in the realm of prediction—specifically the prediction of an outcome (target) variable based on the values of other “predictor” variables. Another important connection is in the area of anomaly detection, where regression diagnostics originally intended for data analysis and improving the regression model can be used to detect unusual records. The antecedents of correlation and linear regression date back over a century.
+
+# Simple Linear Regression
+
+Simple linear regression models the relationship between the magnitude of one variable and that of a second—for example, as $X$ increases, $Y$ also increases. Or as $X$ increases, $Y$ decreases. Correlation is another way to measure how two variables are related. The difference is that while correlation measures the strength of an association between two variables, regression quantifies the nature of the relationship.
+
+| Term | Definition | Synonym |
+| ---- | ---- | ---- |
+| **Response** | The variable we are trying to predict. | dependent variable, Y-variable, target, outcome |
+| **Independent Variable** | The variable used to predict the response. | independent variable, X-variable, feature, attribute |
+| **Record** | The vector of predictor and outcome values for a specific individual or case. | row, case, instance, example |
+| **Intercept** | The intercept of the regression line—that is, the predicted value when $X=0$. | $b_0$, $\beta_0$ |
+| **Regression Coefficient** | The slope of the regression line. | slope, $b_1$, $\beta_1$, parameter estimates, weights |
+| **Fitted Values** | The estimates $\hat{Y}_i$ obtained from the regression line. | predicted values |
+| **Residuals** | The difference between the observed values and the fitted values. | errors |
+| **Least Squares** | The method of fitting a regression by minimizing the sum of squared residuals. | ordinary least squares |
+Table: **KEY TERMS FOR SIMPLE LINEAR REGRESSION**
+
+## The Regression Equation
+
+Simple linear regression estimates exactly how much $Y$ will change when $X$ changes by a certain amount. With the correlation coefficient, the variables $X$ and $Y$ are interchangable. With regression, we are trying to predict the $Y$ variable from $X$ using a linear relationship (i.e., a line):
+
+$Y = b_0 + b_1X$
+
+We read this as “$Y$ equals $b_1$ times $X$, plus a constant $b_0$.” The symbol $b_0$ is known as the ***intercept*** (or constant), and the symbol $b_1$ as the ***slope*** for $X$. Both appear in `R` output as ***coefficients***, though in general use the term ***coefficient*** is often reserved for $b_1$. The $Y$ variable is known as the ***response*** or ***dependent*** variable since it depends on $X$. The $X$ variable is known as the predictor or independent variable. The machine learning community tends to use other terms, calling $Y$ the ***target*** and $X$ a ***feature*** vector.
+
+The `lm` function in `R` can be used to fit a linear regression.
+
+```{r}
+model <- lm (PEFR ~ Exposure, data=lung)
+```
+
+`lm` standards for ***linear model*** and the ~ symbol denotes that `PEFR` is predicted by `Exposure`.
+
+Printing the `model` object produces the following output:
+
+```{r}
+model
+```
+
+The intercept, or $b_0$, is 424.583 and can be interpreted as the predicted PEFR for a worker with zero years exposure. The regression coefficient, or $b_1$, can be interpreted as follows: for each additional year that a worker is exposed to cotton dust, the worker’s `PEFR` measurement is reduced by –4.185.
+
+## Fitted Values and Residuals
+
+Important concepts in regression analysis are the ***fitted*** values and ***residuals***. In general, the data doesn’t fall exactly on a line, so the regression equation should include an explicit error term  $e_i$:
+
+$Y_i = b_0 + b_1X_i + e_i$
+
+The ***fitted*** values, also referred to as the ***predicted*** values, are typically denoted by $\hat{Y}_i$ ($Y$-hat). These are given by:
+
+$\hat{Y}_i = \hat{b}_0 + \hat{b}_1X_i$
+
+The notation $\hat{b}_0$ and $\hat{b}_1$ indicates that the coefficients are estimated versus known.
+
+We compute the residuals $\hat{e}_i$ by subtracting the ***predicted*** values from the original data:
+
+$\hat{e}_i = Y_i - \hat{Y}_i$
+
+In `R`, we can obtain the fitted values and residuals using the functions `predict` and `residuals`:
+
+```{r}
+fitted <- predict(model)
+resid <- residuals(model)
+```
+
+## Least Squares
+
+In practice, the regression line is the estimate that minimizes the sum of squared residual values, also called the residual sum of squares or RSS:
+
+$RSS = \displaystyle\sum^n_{i=1}(Y_i - \hat{Y}_i)^2$
+
+which in turn equals:
+
+$ = \displaystyle\sum^n_{i=1}(Y_i - \hat{b}_0 - \hat{b}_1X_i)^2$
+
+The estimates $\hat{b}_0$ and $\hat{b}_1$ are the values that minimize RSS.
+
+The method of minimizing the sum of the squared residuals is termed ***least squares regression***, or ***ordinary least squares*** (OLS) regression. It is often attributed to Carl Friedrich Gauss, the German mathmetician, but was first published by the French mathmetician Adrien-Marie Legendre in 1805. Least squares regression leads to a simple formula to compute the coefficients:
+
+$\hat{b}_1 = \frac{\sum^n_{i=1}(Y_i - \bar{Y})(X_i - \bar{X})}{\sum^n_{i=1}(X_i - \bar{X})^2}$
+$\hat{b}_0 = \bar{Y} - \hat{b}_1\bar{X}$
+
+Historically, computational convenience is one reason for the widespread use of least squares in regression. With the advent of big data, computational speed is still an important factor. Least squares, like the mean, are sensitive to outliers, although this tends to be a signicant problem only in small or moderate-sized problems. 
+
+## Prediction versus Explanation (Profiling)
+
+Historically, a primary use of regression was to illuminate a supposed linear relationship between predictor variables and an outcome variable. The goal has been to understand a relationship and explain it using the data that the regression was fit to. In this case, the primary focus is on the estimated slope of the regression equation, $\hat{b}$. Economists want to know the relationship between consumer spending and GDP growth. Public health officials might want to understand whether a public information campaign is effective in promoting safe sex practices. In such cases, the focus is not on predicting individual cases, but rather on understanding the overall relationship.
+
+With the advent of big data, regression is widely used to form a model to predict individual outcomes for new data, rather than explain data in hand (i.e., a predictive model). In this instance, the main items of interest are the fitted values $\hat{Y}$. In marketing, regression can be used to predict the change in revenue in response to the size of an ad campaign. Universities use regression to predict students’ GPA based on their SAT scores.
+
+A regression model that fits the data well is set up such that changes in X lead to changes in Y. However, by itself, the regression equation does not prove the direction of causation. Conclusions about causation must come from a broader context of understanding about the relationship. For example, a regression equation might show a definite relationship between number of clicks on a web ad and number of conversions. It is our knowledge of the marketing process, not the regression equation, that leads us to the conclusion that clicks on the ad lead to sales, and not vice versa.
+
+| Key Ideas |
+| ---- |
+| The regression equation models the relationship between a response variable Y and a predictor variable X as a line. |
+| A regression model yields fitted values and residuals—predictions of the response and the errors of the predictions. |
+| Regression models are typically fit by the method of least squares. |
+| Regression is used both for prediction and explanation. |
+
+# Multiple Linear Regression
+
+When there are multiple predictors, the equation is simply extended to accommodate them:
+
+$Y = b_0 + b_1X_1 + b_2X_2 + ... + b_pX_p + e$
+
+Instead of a line, we now have a linear model—the relationship between each coefficient and its variable (feature) is linear.
+
+| Term | Definition | Synonym |
+| ---- | ---- | ---- |
+|**Root Mean Squared Error** | The square root of the average squared error of the regression (this is the most widely used metric to compare regression models). | RMSE |
+|**Residual Standard Error** | The same as the root mean squared error, but adjusted for degrees of freedom. | RSE |
+|**R-Squared** | The proportion of variance explained by the model, from 0 to 1. | coefficient of determination, $R^2$ | 
+|**t-statistic** | The coefficient for a predictor, divided by the standard error of the coefficient, giving a metric to compare the importance of variables in the model. ||
+|**Weighted Regression** | Regression with the records having different weights. ||
+Table:**KEY TERMS FOR MULTIPLE LINEAR REGRESSION**
+
+All of the other concepts in simple linear regression, such as fitting by least squares and the definition of fitted values and residuals, extend to the multiple linear regression setting. For example, the fitted values are given by:
+
+$\hat{Y}_i = \hat{b}_0 + \hat{b}_1X_{1, i} + \hat{b}_2X_{2, i} + ... + \hat{b}_pX_{p, i}$
+
+## Example: King County Housing Data
+
+An example of using regression is in estimating the value of houses. County assessors must estimate the value of a house for the purposes of assessing taxes. Real estate consumers and professionals consult popular websites such as Zillow to ascertain a fair price. Here are a few rows of housing data from King County (Seattle), Washington, from the house `data.frame`:
+
+```{r}
+head(house[, c("AdjSalePrice", "SqFtTotLiving", "SqFtLot", "Bathrooms", "Bedrooms", "BldgGrade")])
+```
+
+The goal is to predict the sales price from the other variables. The lm handles the multiple regression case simply by including more terms on the righthand side of the equation; the argument na.action=na.omit causes the model to drop records that have missing values:
+
+```{r}
+house_lm <- lm(AdjSalePrice ~ SqFtTotLiving + SqFtLot + Bathrooms + Bedrooms + BldgGrade,
+               data = house, na.action = na.omit)
+
+house_lm
+```
+
+The interpretation of the coefficients is as with simple linear regression: the predicted value $\hat{Y}$ changes by the coefficient $b_j$for each unit change in $X_j$ assuming all the other variables, $X_k$ for $k \neq j $, remain the same. For example, adding an extra finished square foot to a house increases the estimated value by roughly \$229; adding 1,000 finished square feet implies the value will increase by \$228,800.
+
+## Assessing the Model
+
+The most important performance metric from a data science perspective is ***root mean squared error***, or ***RMSE***. RMSE is the square root of the average squared
+error in the predicted $\hat{y}_i$ values:
+
+$RMSE = \sqrt{\frac{\sum^n_{i=1}(y_i - \hat{y}_i)^2}{n}}$
+
+This measures the overall accuracy of the model, and is a basis for comparing it to other models (including models fit using machine learning techniques). Similar to RMSE is the ***residual standard error***, or ***RSE***. In this case we have $p$ predictors, and the RSE is given by:
+
+$RMSE = \sqrt{\frac{\sum^n_{i=1}(y_i - \hat{y}_i)^2}{n - p - 1}}$
+
+The only difference is that the denominator is the degrees of freedom, as opposed to number of records. In practice, for linear regression, the difference between RMSE and RSE is very small, particularly for big data applications.
+
+The summary function in R computes RSE as well as other metrics for a regression model:
+
+```{r}
+summary(house_lm)
+```
+
+Another useful metric that you will see in software output is the ***coefficient of determination***, also called the ***R-squared*** statistic or $R^2$. R-squared ranges from 0 to 1 and measures the proportion of variation in the data that is accounted for in the model. It is useful mainly in explanatory uses of regression where you want to assess how well the model fits the data. The formula for $R^2$ is:
+
+$ R^2 = 1 - \frac{\sum^n_{i=1}(y_i - \hat{y}_i)^2}{\sum^n_{i=1}(y_i - \bar{y}_i)^2}$
+
+The denominator is proportional to the variance of $Y$. The output from R also reports an ***adjusted R-squared***, which adjusts for the degrees of freedom; seldom is this significantly different in multiple regression.
+
+Along with the estimated coefficients, R reports the standard error of the coefficients (SE) and a ***t-statistic***:
+
+$t_b = \frac{\hat{b}}{SE(\hat{b})}$
+
+The t-statistic—and its mirror image, the p-value—measures the extent to which a coefficient is “statistically significant”—that is, outside the range of what a random chance arrangement of predictor and target variable might produce. The higher the t-statistic (and the lower the p-value), the more significant the predictor. Since parsimony is a valuable model feature, it is useful to have a tool like this to guide choice of variables to include as predictors.
+
+## Cross-Validation
+
+Classic statistical regression metrics (R2, F-statistics, and p-values) are all “in- sample” metrics—they are applied to the same data that was used to fit the model. Intuitively, you can see that it would make a lot of sense to set aside some of the original data, not use it to fit the model, and then apply the model to the set-aside (holdout) data to see how well it does. Normally, you would use a majority of the data to fit the model, and use a smaller portion to test the model.
+
+This idea of “out-of-sample” validation is not new, but it did not really take hold until larger data sets became more prevalent; with a small data set, analysts typically want to use all the data and fit the best possible model.
+
+Using a holdout sample, though, leaves you subject to some uncertainty that arises simply from variability in the small holdout sample. How different would the assessment be if you selected a different holdout sample?
+
+Cross-validation extends the idea of a holdout sample to multiple sequential holdout samples. The algorithm for basic ***k-fold cross-validation*** is as follows:
+
+1. Set aside $1/k$ of the data as a holdout sample.
+2. Train the model on the remaining data.
+3. Apply (score) the model to the $1/k$ holdout, and record needed model assessment metrics.
+4. Restore the first $1/k$ of the data, and set aside the next $1/k$ (excluding any records that got picked the first time).
+5. Repeat steps 2 and 3.
+6. Repeat until each record has been used in the holdout portion.
+7. Average or otherwise combine themodel assessment metrics.
+
+The division of the data into the training sample and the holdout sample is also called a ***fold***.
+
+## Model Selection and Stepwise Regression
+
+In some problems, many variables could be used as predictors in a regression. For example, to predict house value, additional variables such as the basement size or year built could be used. In R, these are easy to add to the regression equation:
+
+```{r}
+house_full <- lm(AdjSalePrice ~ SqFtTotLiving + SqFtLot + Bathrooms + Bedrooms + BldgGrade + PropertyType + NbrLivingUnits +
+                    SqFtFinBasement + YrBuilt + YrRenovated + NewConstruction,
+                 data=house, 
+                 na.action=na.omit)
+```
+
+Adding more variables, however, does not necessarily mean we have a better model. Statisticians use the principle of Occam’s razor to guide the choice of a model: all things being equal, a simpler model should be used in preference to a more complicated model.
+
+Including additional variables always reduces RMSE and increases $R^2$. Hence, these are not appropriate to help guide the model choice. In the 1970s, Hirotugu Akaike, the eminent Japanese statistician, developed a metric called AIC (Akaike’s Information Criteria) that penalizes adding terms to a model. In the case of regression, AIC has the form:
+$AIC = 2P + nlog(RSS/n)$
+where $p$ is the number of variables and $n$ is the number of records. The goal is to find the model that minimizes AIC; models with k more extra variables are penalized by $2k$.
+
+How do we find the model that minimizes AIC? One approach is to search through all possible models, called all ***subset regression***. This is computationally expensive and is not feasible for problems with large data and many variables. An attractive alternative is to use ***stepwise regression***, which successively adds and drops predictors to find a model that lowers AIC. The MASS package by Venebles and Ripley offers a stepwise regression function called `stepAIC`:
+
+```{r}
+step <- stepAIC(house_full, direction = "both")
+step
+```
+The function chose a model in which several variables were dropped from house_full: `SqFtLot`, `NbrLivingUnits`, `YrRenovated`, and `NewConstruction`.
+
+Simpler yet are ***forward selection*** and ***backward selection***. In forward selection, you start with no predictors and add them one-by-one, at each step adding the
+predictor that has the largest contribution to $R^2$, stopping when the contribution is no longer statistically significant. In backward selection, or ***backward elimination***, you start with the full model and take away predictors that are not statistically significant until you are left with a model in which all predictors are statistically significant.
+
+***Penalized regression*** is similar in spirit to AIC. Instead of explicitly searching through a discrete set of models, the model-fitting equation incorporates a constraint that penalizes the model for too many variables (parameters). Rather than eliminating predictor variables entirely—as with stepwise, forward, and backward selection—penalized regression applies the penalty by reducing coefficients, in some cases to near zero. Common penalized regression methods are ***ridge regression*** and ***lasso regression***.
+
+
+Stepwise regression and all subset regression are ***in-sample*** methods to assess and tune models. This means the model selection is possibly subject to overfitting and may not perform as well when applied to new data. One common approach to avoid this is to use cross-validation to validate the models. In linear regression, overfitting is typically not a major issue, due to the simple (linear) global structure imposed on the data. For more sophisticated types of models, particularly iterative procedures that respond to local data structure, cross- validation is a very important tool.
+
+## Weighted Regression
+
+Weighted regression is used by statisticians for a variety of purposes; in particular, it is important for analysis of complex surveys. Data scientists may find weighted regression useful in two cases:
+
+* Inverse-variance weighting when different observations have been measured with different precision.
+* Analysis of data in an aggregated form such that the weight variable encodes how many original observations each row in the aggregated data represents.
+
+For example, with the housing data, older sales are less reliable than more recent sales. Using the DocumentDate to determine the year of the sale, we can compute a Weight as the number of years since 2005 (the beginning of the data).
+
+```{r}
+library(lubridate)
+house$Year = year(house$DocumentDate)
+house$Weight = house$Year - 2005
+```
+
+We can compute a weighted regression with the lm function using the weight argument.
+
+```{r}
+house_wt <- lm(AdjSalePrice ~ SqFtTotLiving + SqFtLot + Bathrooms + Bedrooms + BldgGrade,
+               data = house,
+               weight = Weight)
+
+round(cbind(house_lm = house_lm$coefficients,
+            house_wt = house_wt$coefficients),
+      digits = 3)
+```
+
+The coefficents in the weighted regression are slightly different from the original regression.
+
+| Key Ideas | 
+| ---- |
+| Multiple linear regression models the relationship between a response variable $Y$ and multiple predictor variables $X_1, ..., X_p$. | 
+| The most important metrics to evaluate a model are root mean squared error (RMSE) and R-squared ($R^2$). |
+| The standard error of the coefficients can be used to measure the reliability of a variable’s contribution to a model. |
+| Stepwise regression is a way to automatically determine which variables should be included in the model. |
+| Weighted regression is used to give certain records more or less weight in fitting the equation. |
+
+# Prediction using Regression
+
+The primary purpose of regression in data science is prediction. This is useful to keep in mind, since regression, being an old and established statistical method, comes with baggage that is more relevant to its traditional explanatory modeling role than to prediction.
+
+| Term | Definition | 
+| ---- | ---- |
+|**Prediction Interval** | An uncertainty interval around an individual predicted value. |
+|**Extrapolation** | Extension of a model beyond the range of the data used to fit it. |
+Table: **KEY TERMS FOR PREDICTION USING REGRESSION**
+
+## The Dangers of Extrapolation
+
+Regression models should not be used to extrapolate beyond the range of the data. The model is valid only for predictor values for which the data has sufficient values (even in the case that sufficient data is available, there could be other problems. As an extreme case, suppose `model_lm` is used to predict the value of a 5,000-square- foot empty lot. In such a case, all the predictors related to the building would have a value of 0 and the regression equation would yield an absurd prediction of –521,900 + 5,000 × –.0605 = –$522,202. Why did this happen? The data contains only parcels with buildings—there are no records corresponding to vacant land. Consequently, the model has no information to tell it how to predict the sales price for vacant land.
+
+## Confidence and Prediction Intervals
+
+Much of statistics involves understanding and measuring variability (uncertainty). The t-statistics and p-values reported in regression output deal with this in a formal way, which is sometimes useful for variable selection. More useful metrics are confidence intervals, which are uncertainty intervals placed around regression coefficients and predictions. An easy way to understand this is via the bootstrap. The most common regression confidence intervals encountered in software output are those for regression parameters (coefficients). Here is a bootstrap algorithm for generating confidence intervals for regression parameters (coefficients) for a data set with $P$ predictors and $n$ records (rows):
+
+1. Consider each row (including out come variable) as a single “ticket” and place all the $n$ tickets in a box.
+2. Draw a ticket at random, record the values, and replace it in the box.
+3. Repeat step 2 $n$ times; you now have one bootstrap resample. 
+4. Fit a regression to the bootstrap sample, and record the estimated coefficients.
+5. Repeat steps 2 through 4, say,1,000 times.
+6. You now have 1,000 bootstrap values for each coefficient; find the appropriate percentiles for each one (e.g., 5th and 95th for a 90% confidence interval).
+
+You can use the Boot function in `R` to generate actual bootstrap confidence intervals for the coefficients, or you can simply use the formula-based intervals that are a routine `R` output. The conceptual meaning and interpretation are the same, and not of central importance to data scientists, because they concern the regression coefficients. Of greater interest to data scientists are intervals around predicted $y$ values ($\hat{Y}_i$). The uncertainty around $\hat{Y}_i$ comes from two sources:
+
+* Uncertainty about what the relevant predictor variables and their coefficients are (see the preceding bootstrap algorithm)
+* Additional error inherent in individual data points
+
+The individual data point error can be thought of as follows: even if we knew for certain what the regression equation was (e.g., if we had a huge number of records to fit it), the ***actual outcome*** values for a given set of predictor values will vary. 
+
+| Key Ideas |
+| ---- |
+| Extrapolation beyond the range of the data can lead to error. |
+| Confidence intervals quantify uncertainty around regression coefficients. |
+| Prediction intervals quantify uncertainty in individual predictions. | 
+| Most software, R included, will produce prediction and confidence intervals in default or specified output, using formulas. |
+| The bootstrap can also be used; the interpretation and idea are the same. |
+
+# Factor Variables in Regression
+
+***Factor*** variables, also termed ***categorical*** variables, take on a limited number of discrete values. For example, a loan purpose can be “debt consolidation,” “wedding,” “car,” and so on. The binary (yes/no) variable, also called an ***indicator*** variable, is a special case of a factor variable. Regression requires numerical inputs, so factor variables need to be recoded to use in the model. The most common approach is to convert a variable into a set of binary ***dummy*** variables.
+
+| Term | Definition | Synonym |
+| ---- | ---- | ---- |
+|**Dummy Variables** | Binary 0–1 variables derived by recoding factor data for use in regression and other models. ||
+|**Reference Coding** | The most common type of coding used by statisticians, in which one level of a factor is used as a reference and other factors are compared to that level. | treatment coding |
+|**One Hot Encoder** | A common type of coding used in the machine learning community in which all factors levels are retained. While useful for certain machine learning algorithms, this approach is not appropriate for multiple linear regression. ||
+|**Deviation Coding** | A type of coding that compares each level against the overall mean as opposed to the reference level. | sum contrasts |
+
+## Dummy Variable Representation
+
+In the King County housing data, there is a factor variable for the property type; a small subset of six records is shown below.
+
+```{r}
+head(house[, 'PropertyType'])
+```
+
+There are three possible values: `Multiplex`, `Single Family`, and `Townhouse`. To use this factor variable, we need to convert it to a set of binary variables. We do this by creating a binary variable for each possible value of the factor variable. To do this in `R`, we use the `model.matrix` function:
+
+```{r}
+prop_type_dummies <- model.matrix(~PropertyType -1, data=house)
+head(prop_type_dummies)
+```
+
+
+The function `model.matrix` converts a data frame into a matrix suitable to a linear model. The factor variable `PropertyType`, which has three distinct levels,
+is represented as a matrix with three columns. In the machine learning community, this representation is referred to as one hot encoding (see “One Hot Encoder”). In certain machine learning algorithms, such as nearest neighbors and tree models, one hot encoding is the standard way to represent factor variables (for example, see “Tree Models”).
+
+In the regression setting, a factor variable with $P$ distinct levels is usually represented by a matrix with only $P – 1$ columns. This is because a regression model typically includes an intercept term. With an intercept, once you have defined the values for $P – 1$ binaries, the value for the $P$th is known and could be considered redundant. Adding the $P$th column will cause a multicollinearity error (see “Multicollinearity”).
+
+The default representation in R is to use the first factor level as a reference and interpret the remaining levels relative to that factor.
+
+```{r}
+lm(AdjSalePrice ~ SqFtTotLiving + SqFtLot + Bathrooms + Bedrooms + BldgGrade + PropertyType,
+   data=house)
+```
+
+The output from the R regression shows two coefficients corresponding to `PropertyType`: `PropertyTypeSingle Family` and `PropertyTypeTownhouse`. There is no coefficient of `Multiplex` since it is implicitly defined when `PropertyTypeSingle Family` $== 0$ and `PropertyTypeTownhouse` $== 0$. The coefficients are interpreted as relative to `Multiplex`, so a home that is `Single Family` is worth almost \$85,000 less, and a home that is `Townhouse` is worth over \$150,000 less.
+
+## Factor Variables with Many Levels
+
+
+Some factor variables can produce a huge number of binary dummies—zip codes are a factor variable and there are 43,000 zip codes in the US. In such cases, it is useful to explore the data, and the relationships between predictor variables and the outcome, to determine whether useful information is contained in the categories. If so, you must further decide whether it is useful to retain all factors, or whether the levels should be consolidated.
+
+In King County, there are 82 zip codes with a house sale:
+
+```{r}
+table(house$ZipCode)
+```
+
+`ZipCode` is an important variable, since it is a proxy for the effect of location on the value of a house. Including all levels requires 81 coefficients corresponding to 81 degrees of freedom. The original model `house_lm` has only 5 degress of freedom; see “Assessing the Model”. Moreover, several zip codes have only one sale. In some problems, you can consolidate a zip code using the first two or three digits, corresponding to a submetropolitan geographic region. For King County, almost all of the sales occur in 980xx or 981xx, so this doesn’t help.
+
+An alternative approach is to group the zip codes according to another variable, such as sale price. Even better is to form zip code groups using the residuals from an initial model. The following `dplyr` code consolidates the 82 zip codes into five groups based on the median of the residual from the `house_lm` regression:
+
+```{r}
+zip_groups <- house %>% 
+  mutate(resid = residuals(house_lm)) %>% 
+  group_by(ZipCode) %>% 
+  summarize(med_resid = median(resid),
+            cnt = n()) %>% 
+  arrange(med_resid) %>% 
+  mutate(cum_cnt = cumsum(cnt),
+         ZipGroup = ntile(cum_cnt, 5))
+
+house <- house %>% 
+  left_join(select(zip_groups, ZipCode, ZipGroup), by='ZipCode')
+```
+
+The median residual is computed for each zip and the `ntile` function is used to split the zip codes, sorted by the median, into five groups. See “Confounding Variables” for an example of how this is used as a term in a regression improving upon the original fit.
+
+The concept of using the residuals to help guide the regression fitting is a fundamental step in the modeling process; see “Testing the Assumptions: Regression Diagnostics”.
+
+## Ordered Factor Variables
+
+Some factor variables reflect levels of a factor; these are termed ordered factor variables or ***ordered categorical variables***. For example, the loan grade could be A, B, C, and so on—each grade carries more risk than the prior grade. Ordered factor variables can typically be converted to numerical values and used as is. For example, the variable `BldgGrade` is an ordered factor variable. While the grades have specific meaning, the numeric value is ordered from low to high, corresponding to higher-grade homes. With the regression model `house_lm`, fit in “Multiple Linear Regression”, `BldgGrade` was treated as a numeric variable.
+
+Treating ordered factors as a numeric variable preserves the information contained in the ordering that would be lost if it were converted to a factor.
+
+| Key Ideas |
+| ---- |
+| Factor variables need to be converted into numeric variables for use in a regression. |
+| The most common method to encode a factor variable with P distinct values is to represent them using P-1 dummy variables. |
+| A factor variable with many levels, even in very big data sets, may need to be consolidated into a variable with fewer levels. |
+| Some factors have levels that are ordered and can be represented as a single numeric variable. |
