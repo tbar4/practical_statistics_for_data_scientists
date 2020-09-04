@@ -2,7 +2,9 @@
 title: "Regression and Prediction"
 author: "Trevor Barnes"
 date: "9/2/2020"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -120,7 +122,7 @@ $RSS = \displaystyle\sum^n_{i=1}(Y_i - \hat{Y}_i)^2$
 
 which in turn equals:
 
-$ = \displaystyle\sum^n_{i=1}(Y_i - \hat{b}_0 - \hat{b}_1X_i)^2$
+$= \displaystyle\sum^n_{i=1}(Y_i - \hat{b}_0 - \hat{b}_1X_i)^2$
 
 The estimates $\hat{b}_0$ and $\hat{b}_1$ are the values that minimize RSS.
 
@@ -184,7 +186,7 @@ house_lm <- lm(AdjSalePrice ~ SqFtTotLiving + SqFtLot + Bathrooms + Bedrooms + B
 house_lm
 ```
 
-The interpretation of the coefficients is as with simple linear regression: the predicted value $\hat{Y}$ changes by the coefficient $b_j$for each unit change in $X_j$ assuming all the other variables, $X_k$ for $k \neq j $, remain the same. For example, adding an extra finished square foot to a house increases the estimated value by roughly \$229; adding 1,000 finished square feet implies the value will increase by \$228,800.
+The interpretation of the coefficients is as with simple linear regression: the predicted value $\hat{Y}$ changes by the coefficient $b_j$for each unit change in $X_j$ assuming all the other variables, $X_k$ for $k \neq j$, remain the same. For example, adding an extra finished square foot to a house increases the estimated value by roughly \$229; adding 1,000 finished square feet implies the value will increase by \$228,800.
 
 ## Assessing the Model
 
@@ -207,7 +209,7 @@ summary(house_lm)
 
 Another useful metric that you will see in software output is the ***coefficient of determination***, also called the ***R-squared*** statistic or $R^2$. R-squared ranges from 0 to 1 and measures the proportion of variation in the data that is accounted for in the model. It is useful mainly in explanatory uses of regression where you want to assess how well the model fits the data. The formula for $R^2$ is:
 
-$ R^2 = 1 - \frac{\sum^n_{i=1}(y_i - \hat{y}_i)^2}{\sum^n_{i=1}(y_i - \bar{y}_i)^2}$
+$R^2 = 1 - \frac{\sum^n_{i=1}(y_i - \hat{y}_i)^2}{\sum^n_{i=1}(y_i - \bar{y}_i)^2}$
 
 The denominator is proportional to the variance of $Y$. The output from R also reports an ***adjusted R-squared***, which adjusts for the degrees of freedom; seldom is this significantly different in multiple regression.
 
@@ -449,3 +451,255 @@ In data science, the most important use of regression is to predict some depende
 ## Correlated Predictors
 
 In multiple regression, the predictor variables are often correlated with each other. As an example, examine the regression coefficients for the model `step_lm`:
+
+```{r}
+step_lm <- step
+step_lm$coefficients
+```
+
+The coefficient for `Bedrooms` is negative! This implies that adding a bedroom to a house will reduce its value. How can this be? This is because the predictor variables are correlated: larger houses tend to have more bedrooms, and it is the size that drives house value, not the number of bedrooms. Consider two homes of the exact same size: it is reasonable to expect that a home with more, but smaller, bedrooms would be considered less desirable.
+
+Having correlated predictors can make it difficult to interpret the sign and value of regression coefficients (and can inflate the standard error of the estimates). The variables for bedrooms, house size, and number of bathrooms are all correlated. This is illustrated by the following example, which fits another regression removing the variables `SqFtTotLiving`, `SqFtFinBasement`, and `Bathrooms` from the equation:
+
+```{r}
+update(step_lm, . ~ . -SqFtTotLiving - SqFtFinBasement - Bathrooms)
+```
+
+The update function can be used to add or remove variables from a model. Now the coefficient for bedrooms is positive—in line with what we would expect (though it is really acting as a proxy for house size, now that those variables have been removed).
+
+Correlated variables are only one issue with interpreting regression coefficients. In `house_lm`, there is no variable to account for the location of the home, and the
+model is mixing together very different types of regions. Location may be a ***confounding*** variable.
+
+## Multicollinearity
+
+An extreme case of correlated variables produces multicollinearity—a condition in which there is redundance among the predictor variables. Perfect multicollinearity occurs when one predictor variable can be expressed as a linear combination of others. Multicollinearity occurs when:
+
+* A variable is included multiple times by error.
+* $P$ dummiesm instead of $P-1$ dummies, are created from a factor variable.
+* Two variables are nearly perfectly correlated with one another.
+
+Multicollinearity in regression must be addressed—variables should be removed until the multicollinearity is gone. A regression does not have a well-defined solution in the presence of perfect multicollinearity. Many software packages, including `R`, automatically handle certain types of multicolliearity. For example, if `SqFtTotLiving` is included twice in the regression of the house data, the results are the same as for the `house_lm` model. In the case of nonperfect multicollinearity, the software may obtain a solution but the results may be unstable.
+
+## Confounding Variables
+
+With correlated variables, the problem is one of commission: including different variables that have a similar predictive relationship with the response. With ***confounding variables***, the problem is one of omission: an important variable is not included in the regression equation. Naive interpretation of the equation coefficients can lead to invalid conclusions.
+
+Take, for example, the King County regression equation `house_lm` from “Example: King County Housing Data”. The regression coefficients of `SqFtLot`, `Bathrooms`, and `Bedrooms` are all negative. The original regression model does not contain a variable to represent location—a very important predictor of house price. To model location, include a variable `ZipGroup` that categorizes the zip code into one of five groups, from least expensive (1) to most expensive (5).
+
+```{r}
+lm(AdjSalePrice ~ SqFtTotLiving + SqFtLot + Bathrooms + Bedrooms + BldgGrade + PropertyType + ZipGroup,
+   data=house, 
+   na.action=na.omit)
+```
+
+`ZipGroup` is clearly an important variable: a home in the most expensive zip code group is estimated to have a higher sales price by almost \$340,000. The coefficients of `SqFtLot` and `Bathrooms` are now positive and adding a bathroom increases the sale price by \$7,500.
+
+The coefficient for `Bedrooms` is still negative. While this is unintuitive, this is a well-known phenomenon in real estate. For homes of the same livable area and number of bathrooms, having more, and therefore smaller, bedrooms is associated with less valuable homes.
+
+## Interaction and Main Effects
+
+Statisticians like to distinguish between ***main effects***, or independent variables, and the ***interactions*** between the main effects. Main effects are what are often referred to as the ***predictor variables*** in the regression equation. An implicit assumption when only main effects are used in a model is that the relationship between a predictor variable and the response is independent of the other predictor variables. This is often not the case.
+
+For example, the model fit to the King County Housing Data in “Confounding Variables” includes several variables as main effects, including `ZipCode`. Location in real estate is everything, and it is natural to presume that the relationship between, say, house size and the sale price depends on location. A big house built in a low-rent district is not going to retain the same value as a big house built in an expensive area. You include interactions between variables in `R` using the `*` operator. For the King County data, the following fits an interaction between `SqFtTotLiving` and `ZipGroup`:
+
+```{r}
+lm(AdjSalePrice ~ SqFtTotLiving*ZipGroup + SqFtLot + Bathrooms + Bedrooms + BldgGrade + PropertyType, 
+   data=house, 
+   na.action=na.omit)
+```
+
+The resulting model has four new terms: `SqFtTotLiving:ZipGroup2`, `SqFtTotLiving:ZipGroup3`, and so on.
+
+Location and house size appear to have a strong interaction. For a home in the lowest `ZipGroup`, the slope is the same as the slope for the main effect `SqFtTotLiving`, which is \$177 per square foot (this is because `R` uses reference coding for factor variables). For a home in the highest `ZipGroup`, the slope is the sum of the main effect plus `SqFtTotLiving:ZipGroup5`, or \$177 + \$230 = \$447 per square foot. In other words, adding a square foot in the most expensive zip code group boosts the predicted sale price by a factor of almost 2.7, compared to the boost in the least expensive zip code group.
+
+| Key Ideas | 
+| Because of correlation between predictors, care must be taken in the interpretation of the coefficients in multiple linear regression. |
+| Multicollinearity can cause numerical instability in fitting the regression equation. |
+| A confounding variable is an important predictor that is omitted from a model and can lead to a regression equation with spurious relationships. |
+| An interaction term between two variables is needed if the relationship between the variables and the response is interdependent. |
+
+# Testing the Assumptions: Regression Diagnostics 
+
+In explanatory modeling (i.e., in a research context), various steps, in addition to the metrics mentioned previously, are taken to assess how well the model fits the data. Most are based on analysis of the residuals, which can test the assumptions underlying the model. These steps do not directly address predictive accuracy, but they can provide useful insight in a predictive setting.
+
+| Term | Definition | Synonym |
+| ---- | ---- | ---- |
+| **Standardized Residuals** | Residuals divided by the standard error of the residuals. ||
+| **Outliers** | Records (or outcome values) that are distant from the rest of the data (or the predicted outcome).||
+| **Influential Value** | A value or record whose presence or absence makes a big difference in the regression equation. ||
+| **Leverage** | The degree of influence that a single record has on a regression equation. |hat-value|
+| **Non-Normal Residuals** | Non-normally distributed residuals can invalidate some technical requirements of regression, but are usually not a concern in data science. ||
+| **Heteroskedasticity** | When some ranges of the outcome experience residuals with higher variance (may indicate a predictor missing from the equation). ||
+| **Partial Residual Plots** | A diagnostic plot to illuminate the relationship between the outcome variable and a single predictor. | added variables plot |
+Table:**KEY TERMS FOR REGRESSION DIAGNOSTICS**
+
+Generally speaking, an extreme value, also called an ***outlier***, is one that is distant from most of the other observations. Just as outliers need to be handled for estimates of location and variability, outliers can cause problems with regression models. In regression, an outlier is a record whose actual y value is distant from the predicted value. You can detect outliers by examining the ***standardized residual***, which is the residual divided by the standard error of the residuals.
+
+There is no statistical theory that separates outliers from nonoutliers. Rather, there are (arbitrary) rules of thumb for how distant from the bulk of the data an observation needs to be in order to be called an outlier. For example, with the boxplot, outliers are those data points that are too far above or below the box boundaries (see “Percentiles and Boxplots”), where “too far” = “more than 1.5 times the inter-quartile range.” In regression, the standardized residual is the metric that is typically used to determine whether a record is classified as an outlier. Standardized residuals can be interpreted as “the number of standard errors away from the regression line.”
+
+Let’s fit a regression to the King County house sales data for all sales in zip code 98105:
+
+```{r}
+house_98105 <- house[house$ZipCode == 98105,]
+lm_98105 <- lm(AdjSalePrice ~ SqFtTotLiving + SqFtLot + Bathrooms + Bedrooms + BldgGrade, 
+               data=house_98105)
+```
+
+We extract the standardized residuals using the rstandard function and obtain
+the index of the smallest residual using the order function:
+
+```{r}
+sresid <- rstandard(lm_98105) 
+idx <- order(sresid) 
+sresid[idx[1]]
+```
+
+The biggest overestimate from the model is more than four standard errors above the regression line, corresponding to an overestimate of $757,753. The original data record corresponding to this outlier is as follows:
+
+```{r}
+house_98105[idx[1], c('AdjSalePrice', 'SqFtTotLiving', 'SqFtLot', 'Bathrooms', 'Bedrooms', 'BldgGrade')]
+```
+
+## Influential Values
+
+A value whose absence would significantly change the regression equation is termed an ***infuential observation***. In regression, such a value need not be associated with a large residual. The solid line corresponds to the regression with all the data, while the dashed line corresponds to the regression with the point in the upper-right removed. Clearly, that data value has a huge influence on the regression even though it is not associated with a large outlier (from the full regression). This data value is considered to have high ***leverage*** on the regression.
+
+In addition to standardized residuals, statisticians have developed several metrics to determine the influence of a single record on a regression. A common measure of leverage is the hat-value; values above $2(P + 1)/n$ indicate a high-leverage data value.
+
+Another metric is ***Cook’s distance***, which defines influence as a combination of leverage and residual size. A rule of thumb is that an observation has high influence if Cook’s distance exceeds $4/(n-P-1)$.
+
+An ***influence plot*** or ***bubble plot*** combines standardized residuals, the hat-value, and Cook’s distance in a single plot.
+
+```{r}
+std_resid <- rstandard(lm_98105)
+cooks_D <- cooks.distance(lm_98105)
+hat_values <- hatvalues(lm_98105) 
+plot(hat_values, std_resid, cex=10*sqrt(cooks_D)) 
+abline(h=c(-2.5, 2.5), lty=2)
+```
+
+There are apparently several data points that exhibit large influence in the regression. Cook’s distance can be computed using the function cooks.distance, and you can use hatvalues to compute the diagnostics. The hat values are plotted on the x-axis, the residuals are plotted on the y-axis, and the size of the points is related to the value of Cook’s distance.
+
+For purposes of fitting a regression that reliably predicts future data, identifying influential observations is only useful in smaller data sets. For regressions involving many records, it is unlikely that any one observation will carry sufficient weight to cause extreme influence on the fitted equation (although the regression may still have big outliers). For purposes of anomaly detection, though, identifying influential observations can be very useful.
+
+## Heteroskedasticity, Non-Normality and Correlated Errors
+
+Statisticians pay considerable attention to the distribution of the residuals. It turns out that ordinary least squares (see “Least Squares”) are unbiased, and in some cases the “optimal” estimator, under a wide range of distributional assumptions. This means that in most problems, data scientists do not need to be too concerned with the distribution of the residuals.
+
+The distribution of the residuals is relevant mainly for the validity of formal statistical inference (hypothesis tests and p-values), which is of minimal importance to data scientists concerned mainly with predictive accuracy. For formal inference to be fully valid, the residuals are assumed to be normally distributed, have the same variance, and be independent. One area where this may be of concern to data scientists is the standard calculation of confidence intervals for predicted values, which are based upon the assumptions about the residuals.
+
+***Heteroskedasticity*** is the lack of constant residual variance across the range of the predicted values. In other words, errors are greater for some portions of the range than for others. The ggplot2 package has some convenient tools to analyze residuals.
+
+The following code plots the absolute residuals versus the predicted values for the lm_98105 regression fit in “Outliers”.
+
+```{r}
+df <- data.frame(
+  resid = residuals(lm_98105), 
+  pred = predict(lm_98105))
+ggplot(df, aes(pred, abs(resid))) + 
+  geom_point() +
+  geom_smooth()
+```
+
+Evidently, the variance of the residuals tends to increase for higher-valued homes, but is also large for lower-valued homes. This plot indicates that lm_98105 has heteroskedastic errors.
+
+Statisticians may also check the assumption that the errors are independent. This is particularly true for data that is collected over time. The ***Durbin-Watson*** statistic can be used to detect if there is significant autocorrelation in a regression involving time series data.
+
+## Partial Residual Plots and Nonlinearity
+
+***Partial residual plots*** are a way to visualize how well the estimated fit explains the relationship between a predictor and the outcome. Along with detection of outliers, this is probably the most important diagnostic for data scientists. The basic idea of a partial residual plot is to isolate the relationship between a predictor variable and the response, ***taking into account all of the other predictor variables***. A partial residual might be thought of as a “synthetic outcome” value, combining the prediction based on a single predictor with the actual residual from the full regression equation. A partial residual for predictor  $X_i$ is the ordinary residual plus the regression term associated with $X_i$:
+
+$PartialResidual = Residual + \hat{b}_iX_i$
+
+where $\hat{b}_i$ is the estimated regression coefficient. The predict function in R has an option to return the individual regression terms $\hat{b}X_i$:
+
+```{r}
+terms <- predict(lm_98105, type='terms') 
+partial_resid <- resid(lm_98105) + terms
+```
+
+The partial residual plot displays the $X_i$ on the x-axis and the partial residuals on the y-axis. Using ggplot2 makes it easy to superpose a smooth of the partial residuals.
+
+```{r}
+df <- data.frame(SqFtTotLiving = house_98105[, 'SqFtTotLiving'], 
+                 Terms = terms[, 'SqFtTotLiving'], 
+                 PartialResid = partial_resid[, 'SqFtTotLiving']) 
+
+ggplot(df, aes(SqFtTotLiving, PartialResid)) + 
+  geom_point(shape=1) + scale_shape(solid = FALSE) + 
+  geom_smooth(linetype=2) + 
+  geom_line(aes(SqFtTotLiving, Terms))
+
+```
+
+The partial residual is an estimate of the contribution that `SqFtTotLiving` adds to the sales price. The relationship between `SqFtTotLiving` and the sales price is evidently nonlinear. The regression line underestimates the sales price for homes less than 1,000 square feet and overestimates the price for homes between 2,000 and 3,000 square feet. There are too few data points above 4,000 square feet to draw conclusions for those homes.
+
+This nonlinearity makes sense in this case: adding 500 feet in a small home makes a much bigger difference than adding 500 feet in a large home. This suggests that, instead of a simple linear term for SqFtTotLiving, a nonlinear term should be considered.
+
+| Key Ideas |
+| ---- |
+| While outliers can cause problems for small data sets, the primary interest with outliers is to identify problems with the data, or locate anomalies. |
+| Single records (including regression outliers) can have a big influence on a regression equation with small data, but this effect washes out in big data. |
+| If the regression model is used for formal inference (p-values and the like), then certain assumptions about the distribution of the residuals should be checked. In general, however, the distribution of residuals is not critical in data science. |
+| The partial residuals plot can be used to qualitatively assess the fit for each regression term, possibly leading to alternative model specification. |
+
+# Polynomial and Spline Regression
+
+| Term | Definition | Synonym |
+| ---- | ---- | ---- |
+| **Polynomial Regression** | Adds polynomial terms (squares, cubes, etc.) to a regression. ||
+| **Spline Regression** | Fitting a smooth curve with a series of polynomial segments. ||
+| **Knots** | Values that separate spline segments. ||
+| **Generalized additive models** | Spline models with automated selection of knots. | GAM |
+Table: **KEY TERMS FOR NONLINEAR REGRESSION**
+
+## Polynomial
+
+***Polynomial regression*** involves including polynomial terms to a regression equation. The use of polynomial regression dates back almost to the development of regression itself with a paper by Gergonne in 1815. For example, a quadratic regression between the response $Y$ and the predictor $X$ would take the form:
+
+$Y = b_0 + b_1X + b_2X^2 + e$
+
+Polynomial regression can be fit in R through the poly function. For example, the following fits a quadratic polynomial for `SqFtTotLiving` with the King County housing data:
+
+```{r}
+lm(AdjSalePrice ~ poly(SqFtTotLiving, 2) + SqFtLot + BldgGrade + Bathrooms + Bedrooms, 
+   data=house_98105)
+```
+
+## Splines
+
+Polynomial regression only captures a certain amount of curvature in a nonlinear relationship. Adding in higher-order terms, such as a cubic quartic polynomial, often leads to undesirable “wiggliness” in the regression equation. An alternative, and often superior, approach to modeling nonlinear relationships is to use ***splines***. Splines provide a way to smoothly interpolate between fixed points. Splines were originally used by draftsmen to draw a smooth curve, particularly in ship and aircraft building.
+
+The technical definition of a spline is a series of piecewise continuous polynomials. They were first developed during World War II at the US Aberdeen Proving Grounds by I. J. Schoenberg, a Romanian mathematician. The polynomial pieces are smoothly connected at a series of fixed points in a predictor variable, referred to as ***knots***. Formulation of splines is much more complicated than polynomial regression; statistical software usually handles the details of fitting a spline. The `R` package `splines` includes the function bs to create a ***b-spline*** term in a regression model. For example, the following adds a b-spline term to the house regression model:
+
+```{r}
+library(splines)
+knots <- quantile(house_98105$SqFtTotLiving, p=c(.25, .5, .75))
+lm_spline <- lm(AdjSalePrice ~ bs(SqFtTotLiving, knots=knots, degree=3) + SqFtLot + Bathrooms + Bedrooms + BldgGrade, 
+                data=house_98105)
+```
+
+Two parameters need to be specified: the degree of the polynomial and the location of the knots. In this case, the predictor `SqFtTotLiving` is included in
+the model using a cubic spline (`degree=3`). By default, bs places knots at the boundaries; in addition, knots were also placed at the lower quartile, the median quartile, and the upper quartile.
+ 
+In contrast to a linear term, for which the coefficient has a direct meaning, the coefficients for a spline term are not interpretable. Instead, it is more useful to use the visual display to reveal the nature of the spline fit. In contrast to the polynomial model, the spline model more closely matches the smooth, demonstrating the greater flexibility of splines. In this case, the line more closely fits the data. Does this mean the spline regression is a better model? Not necessarily: it doesn’t make economic sense that very small homes (less than 1,000 square feet) would have higher value than slightly larger homes. This is possibly an artifact of a confounding variable.
+
+## Generalized Additive Models
+
+Suppose you suspect a nonlinear relationship between the response and a predictor variable, either by a priori knowledge or by examining the regression diagnostics. Polynomial terms may not flexible enough to capture the relationship, and spline terms require specifying the knots. ***Generalized additive models***, or ***GAM***, are a technique to automatically fit a spline regression. The `gam` package in `R` can be used to fit a GAM model to the housing data:
+
+```{r}
+library(mgcv)
+lm_gam <- gam(AdjSalePrice ~ s(SqFtTotLiving) + SqFtLot + Bathrooms + Bedrooms + BldgGrade, 
+              data=house_98105)
+```
+
+| Key Ideas |
+| ---- |
+| Outliers in a regression are records with a large residual. |
+| Multicollinearity can cause numerical instability in fitting the regression equation. |
+| A confounding variable is an important predictor that is omitted from a model and can lead to a regression equation with spurious relationships. |
+| An interaction term between two variables is needed if the effect of one variable depends on the level of the other. |
+| Polynomial regression can fit nonlinear relationships between predictors and the outcome variable. |
+| Splines are series of polynomial segments strung together, joining at knots. |
+| Generalized additive models (GAM) automate the process of specifying the knots in splines. |

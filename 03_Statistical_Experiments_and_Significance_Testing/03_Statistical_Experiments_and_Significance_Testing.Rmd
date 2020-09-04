@@ -2,7 +2,9 @@
 title: "Statistical Experiments and Significance Testing"
 author: "Trevor Barnes"
 date: "9/1/2020"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -422,7 +424,7 @@ We can test with this resampling algorithm:
 
 The function `chisq.test` can be used to compute a resampled chi-square statistic. For the click data, the chi-square test is:
 
-```{r}
+```{r, error = TRUE}
 chisq.test(clicks, simulate.p.value=TRUE)
 ```
 
@@ -436,7 +438,7 @@ The chi-square distribution is typically skewed, with a long tail to the right f
 
 The function chisq.test can be used to compute the p-value using the chi- squared distribution as a reference:
 
-```{r}
+```{r, error=TRUE}
 chisq.test(clicks, simulate.p.value=FALSE)
 ```
 
@@ -446,7 +448,7 @@ The p-value is a little less than the resampling p-value: this is because the ch
 
 The chi-square distribution is a good approximation of the shuffled resampling test just described, except when counts are extremely low (single digits, especially five or fewer). In such cases, the resampling procedure will yield more accurate p-values. In fact, most statistical software has a procedure to actually enumerate all the possible rearrangements (permutations) that can occur, tabulate their frequencies, and determine exactly how extreme the observed result is. This is called Fisher’s exact test after the great statistician R. A. Fisher. R code for Fisher’s exact test is simple in its basic form:
 
-```{r}
+```{r, error=TRUE}
 fisher.test(clicks)
 ```
 
