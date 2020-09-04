@@ -433,3 +433,19 @@ Treating ordered factors as a numeric variable preserves the information contain
 | The most common method to encode a factor variable with P distinct values is to represent them using P-1 dummy variables. |
 | A factor variable with many levels, even in very big data sets, may need to be consolidated into a variable with fewer levels. |
 | Some factors have levels that are ordered and can be represented as a single numeric variable. |
+
+# Interpreting the Regression Equation
+
+In data science, the most important use of regression is to predict some dependent (outcome) variable. In some cases, however, gaining insight from the equation itself to understand the nature of the relationship between the predictors and the outcome can be of value. This section provides guidance on examining the regression equation and interpreting it.
+
+| Term | Definition | Synonym |
+| ---- | ---- | ---- |
+| **Correlated variables** | When the predictor variables are highly correlated, it is difficult to interpret the individual coefficients. ||
+| **Multicollinearity** | When the predictor variables have perfect, or near-perfect, correlation, the regression can be unstable or impossible to compute. | collinearity |
+| **Confounding variables** | An important predictor that, when omitted, leads to spurious relationships in a regression equation. ||
+| **Main Effects** | The relationship between a predictor and the outcome variable, independent from other variables. ||
+| **Interactions** | An interdependent relationship between two or more predictors and the response. ||
+
+## Correlated Predictors
+
+In multiple regression, the predictor variables are often correlated with each other. As an example, examine the regression coefficients for the model `step_lm`:
